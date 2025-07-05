@@ -10,8 +10,8 @@ normal='\033[0m'
 bold='\033[1m'
 
 # Dependencies
-dependencies="rofi-lbonn-wayland-only-git hyprland kitty pcmanfm-gtk3 swaybg lxsession wl-gammarelay-rs \
-              grim slurp playerctl alsa-utils bc neovim waybar-hyprland-git wl-clipboard-rs"
+dependencies="rofi-lbonn-wayland hyprland kitty pcmanfm-gtk3 swaybg lxsession wl-gammarelay-rs \
+              grim slurp playerctl alsa-utils bc neovim waybar wl-clipboard-rs"
 dunst_dependencies="pod2man core/dbus libxinerama libxrandr libxss glib pango libnotify xdg-utils"
 starship_dependencies="fish lsd neofetch"
 paru_dependencies="cargo git"

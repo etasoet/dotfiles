@@ -1,122 +1,69 @@
 #!/bin/bash
 
-# COLORS
+# Colors
 purple='\033[1;35m'
 red='\033[0;31m'
 green='\033[0;32m'
 blue='\033[0;94m'
-grey='\033[90m'
 normal='\033[0m'
 bold='\033[1m'
 
-# Dependencies (replaced 'waybar-hyprland-git' with stable 'waybar')
-dependencies="rofi-lbonn-wayland-only-git hyprland kitty pcmanfm-gtk3 swaybg lxsession wl-gammarelay-rs \
-              grim slurp playerctl alsa-utils bc neovim waybar wl-clipboard-rs"
-dunst_dependencies="pod2man core/dbus libxinerama libxrandr libxss glib pango libnotify xdg-utils"
-starship_dependencies="fish lsd neofetch"
-paru_dependencies="cargo git"
-fonts="ttf-nerd-fonts-symbols noto-fonts \
-       noto-fonts-cjk noto-fonts-emoji noto-fonts-extra"
+# Packages
+dependencies="rofi-lbonn-wayland-only-git hyprland kitty pcmanfm-gtk3 swaybg lxsession wl-gammarelay-rs grim slurp playerctl alsa-utils bc neovim wl-clipboard"
+fonts="ttf-nerd-fonts-symbols noto-fonts noto-fonts-cjk noto-fonts-emoji noto-fonts-extra"
 icons="sardi-icons"
 optional_stuff="firefox github-cli pavucontrol"
+paru_dependencies="cargo git"
+starship_dependencies="fish lsd neofetch"
+dunst_dependencies="pod2man dbus libxinerama libxrandr libxss glib pango libnotify xdg-utils"
 
-# Functions (no edits needed here)
-print_header() { echo -e "${purple}==>${normal} ${bold}$1...${normal}"; sleep 0.3; }
-print_text() { echo -e "${blue}==>${normal} ${bold}$1...${normal}"; }
-install() { paru -S --needed --noconfirm $1; }
-
-confirm() {
-  while true; do
-    echo -e "$1 ${green}[y]${normal}es or ${red}[n]${normal}o (default: ${green}yes${normal}):"
-    read -p ":: " -r answer
-    case "$answer" in
-      y|Y|yes|"") return 0 ;;
-      n|N|no) return 1 ;;
-      *) echo -e "${red}-> Please answer y or n.${normal}" ;;
-    esac
-  done
+print_header() {
+  echo -e "\n${purple}==> ${bold}$1${normal}"
+  sleep 0.2
 }
 
-# Main install process
-main() {
-  echo -e "${bold}Select the features to install:${normal}"
-  echo -e "${grey}[ x ]   Config files [Required]${normal}"
-  echo -e "${grey}[ x ]   Dependencies [Required]${normal}"
-  echo -e "${grey}[ x ]   Fonts [Required]${normal}"
-
-  install_options=(
-    "Icons [Recommended]"
-    "AstroNvim [Install neovim]"
-    "Vencord - [Installs discord]"
-    "Starship - [Installs fish shell]"
-    "Dunst"
-    "Gtk theme"
-    "Additional stuff [github-cli,firefox,pavucontrol]"
-  )
-  preselection=("true" "true" "false" "false" "true" "true" "false")
-  multiselect results install_options preselection
-
-  print_header "Checking if paru is installed"
-  if ! hash paru 2>/dev/null; then
-    print_text "Paru not found"
-    if confirm "Install paru?"; then
-      install_paru || { echo -e "${red}Paru install failed.${normal}"; exit 1; }
-    else
-      echo -e "${red}-> Paru is required. Exiting.${normal}"; exit 1
-    fi
+install() {
+  paru -S --needed --noconfirm $1
+  if [ $? -ne 0 ]; then
+    echo -e "${red}Failed to install: $1${normal}"
+    exit 1
   fi
-
-  print_header "Installing dependencies"
-  install "${dependencies}"
-
-  print_header "Installing fonts"
-  install "${fonts}"
-
-  [ "${results[0]}" == true ] && install "${icons}"
-  [ "${results[1]}" == true ] && install_nvim
-  [ "${results[2]}" == true ] && install_vencord
-  [ "${results[3]}" == true ] && install_starship
-  [ "${results[4]}" == true ] && install_dunst
-  [ "${results[5]}" == true ] && install_gtk_theme
-
-  if confirm "Backup current config?"; then
-    print_header "Backing up config"
-    mkdir -p ~/.config.bak && cp -a ~/.config/. ~/.config.bak/
-  fi
-
-  print_header "Installing config files"
-  git clone -b arch https://github.com/etasoet/dotfiles ~/dotfiles
-  cp -ar ~/dotfiles/.config/* ~/.config/
-  cp -ar ~/dotfiles/home/* ~/
-
-  [ "${results[6]}" == true ] && install "${optional_stuff}"
-
-  echo -e "\n${green}Done. Reboot or log out to see the changes.${normal}"
 }
 
-# Install helpers
 install_paru() {
-  git clone https://aur.archlinux.org/paru.git
-  cd paru && makepkg -si && cd .. && rm -rf paru
+  print_header "Installing paru (AUR helper)"
+  git clone https://aur.archlinux.org/paru.git || { echo "Git failed"; exit 1; }
+  cd paru
+  makepkg -si --noconfirm || { echo "Paru build failed"; exit 1; }
+  cd ..
+  rm -rf paru
 }
 
 install_starship() {
-  install "${starship_dependencies}"
-  chsh -s "$(which fish)"
+  install "$starship_dependencies"
   install "starship"
+  chsh -s "$(which fish)"
 }
 
 install_vencord() {
   install "npm discord"
   sudo npm i -g pnpm
   git clone https://github.com/Vendicated/Vencord
-  cd Vencord && pnpm install && pnpm build && sudo pnpm inject && cd .. && rm -rf Vencord
+  cd Vencord
+  pnpm install --frozen-lockfile
+  pnpm build
+  sudo pnpm inject
+  cd ..
+  rm -rf Vencord
 }
 
 install_dunst() {
-  install "${dunst_dependencies}"
-  git clone -b progress-styling https://github.com/k-vernooy/dunst
-  cd dunst && make && sudo make install && cd .. && rm -rf dunst
+  install "$dunst_dependencies"
+  git clone -b progress-styling https://github.com/k-vernooy/dunst/
+  cd dunst
+  make && sudo make install
+  cd ..
+  rm -rf dunst
 }
 
 install_nvim() {
@@ -125,15 +72,62 @@ install_nvim() {
 }
 
 install_gtk_theme() {
-  sudo cp -a themes/adw-gtk3-dark/ /usr/share/themes/
+  sudo cp -a themes/adw-gtk3-dark/ /usr/share/themes
   gsettings set org.gnome.desktop.interface gtk-theme adw-gtk3-dark
   gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
 }
 
-# Menu selector
-multiselect() {
-  # … menu code unchanged …
-  # You can leave this part as-is from the original file
+backup_config() {
+  mkdir -p ~/.config.bak
+  cp -r ~/.config/* ~/.config.bak/ 2>/dev/null
 }
 
-main "$@"
+install_config() {
+  git clone -b arch https://github.com/etasoet/dotfiles ~/dotfiles
+  cp -ar ~/dotfiles/.config/. ~/.config/
+  cp -ar ~/dotfiles/home/. ~/
+}
+
+main() {
+  print_header "Checking if paru is installed"
+  if ! command -v paru &> /dev/null; then
+    install_paru
+  fi
+
+  print_header "Installing core dependencies"
+  install "$dependencies"
+
+  print_header "Installing fonts"
+  install "$fonts"
+
+  print_header "Installing icons"
+  install "$icons"
+
+  print_header "Installing Neovim config"
+  install_nvim
+
+  print_header "Installing Discord (Vencord)"
+  install_vencord
+
+  print_header "Installing Fish + Starship"
+  install_starship
+
+  print_header "Installing Dunst"
+  install_dunst
+
+  print_header "Installing GTK Theme"
+  install_gtk_theme
+
+  print_header "Installing Optional Packages"
+  install "$optional_stuff"
+
+  print_header "Backing up existing configs"
+  backup_config
+
+  print_header "Applying dotfiles"
+  install_config
+
+  echo -e "\n${green}✅ All done! Reboot and start flexin'.${normal}"
+}
+
+main
